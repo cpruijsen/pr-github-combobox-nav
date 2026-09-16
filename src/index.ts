@@ -81,6 +81,7 @@ export default class Combobox {
     this.input.addEventListener('input', this.inputHandler)
     ;(this.input as HTMLElement).addEventListener('keydown', this.keyboardEventHandler)
     this.list.addEventListener('mousedown', commitWithElement)
+    this.list.addEventListener('click', commitWithElement)
     this.resetSelection()
   }
 
@@ -92,6 +93,7 @@ export default class Combobox {
     this.input.removeEventListener('input', this.inputHandler)
     ;(this.input as HTMLElement).removeEventListener('keydown', this.keyboardEventHandler)
     this.list.removeEventListener('mousedown', commitWithElement)
+    this.list.removeEventListener('click', commitWithElement)
   }
 
   indicateDefaultOption(): void {
@@ -211,12 +213,31 @@ function keyboardBindings(event: KeyboardEvent, combobox: Combobox) {
   }
 }
 
+// Set when a mousedown has already committed an option, so the click that follows
+// does not commit it a second time. That click may never arrive, for example when
+// the pointer leaves the option before the button is released, so the next click
+// anywhere in the document clears it.
+let committedOnMousedown: Element | null = null
+
+function clearMousedownCommit(): void {
+  committedOnMousedown = null
+}
+
 function commitWithElement(event: MouseEvent) {
-  if (event.button !== 0) return
   if (!(event.target instanceof Element)) return
   const target = event.target.closest('[role="option"]')
   if (!target) return
   if (target.getAttribute('aria-disabled') === 'true') return
+
+  if (event.type === 'mousedown') {
+    if (event.button !== 0) return
+    committedOnMousedown = target
+    target.ownerDocument.addEventListener('click', clearMousedownCommit, {once: true})
+  } else if (committedOnMousedown === target) {
+    committedOnMousedown = null
+    return
+  }
+
   fireCommitEvent(target, {event})
 }
 
@@ -224,7 +245,6 @@ function commit(input: HTMLTextAreaElement | HTMLInputElement, list: HTMLElement
   const target = list.querySelector<HTMLElement>('[aria-selected="true"], [data-combobox-option-default="true"]')
   if (!target) return false
   if (target.getAttribute('aria-disabled') === 'true') return true
-  fireCommitEvent(target)
   target.click()
   return true
 }

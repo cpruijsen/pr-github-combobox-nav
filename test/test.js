@@ -165,6 +165,39 @@ describe('combobox-nav', function () {
       assert.equal(expectedTargets[1], 'baymax')
     })
 
+    it('fires a commit event on a direct option.click()', function () {
+      const expectedTargets = []
+
+      document.addEventListener('combobox-commit', function ({target}) {
+        expectedTargets.push(target.id)
+      })
+
+      document.getElementById('hubot').click()
+
+      assert.equal(expectedTargets.length, 1)
+      assert.equal(expectedTargets[0], 'hubot')
+    })
+
+    it('fires a commit event on a click after a mousedown that never completed', function () {
+      const expectedTargets = []
+
+      document.addEventListener('combobox-commit', function ({target}) {
+        expectedTargets.push(target.id)
+      })
+
+      // Press on the option, then release the pointer elsewhere: the click lands on
+      // an ancestor instead of the option.
+      const option = document.getElementById('hubot')
+      option.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true}))
+      document.body.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))
+
+      option.click()
+
+      assert.equal(expectedTargets.length, 2)
+      assert.equal(expectedTargets[0], 'hubot')
+      assert.equal(expectedTargets[1], 'hubot')
+    })
+
     it('fires commit before a blur handler can stop the combobox', function () {
       const expectedTargets = []
 
